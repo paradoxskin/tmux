@@ -1927,6 +1927,7 @@ struct client {
 	char		       **term_caps;
 	u_int			 term_ncaps;
 
+	struct client           *anchor_client;
 	char			*ttyname;
 	struct tty		 tty;
 

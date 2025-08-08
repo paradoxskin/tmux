@@ -745,6 +745,18 @@ tty_keys_next(struct tty *tty)
 	len = EVBUFFER_LENGTH(tty->in);
 	if (len == 0)
 		return (0);
+
+	if (c->anchor_client) {
+		c = c->anchor_client;
+	}
+
+	///* Anchor Target */
+	//if (c->anchor_client) {
+	//	write(c->anchor_client->fd, buf, len);
+	//	evbuffer_drain(tty->in, size);
+	//	return (0);
+	//}
+
 	log_debug("%s: keys are %zu (%.*s)", c->name, len, (int)len, buf);
 
 	/* Is this a clipboard response? */
