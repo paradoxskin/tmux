@@ -53,9 +53,10 @@ const struct cmd_entry cmd_list_clients_entry = {
 static enum cmd_retval
 cmd_list_clients_exec(struct cmd *self, struct cmdq_item *item)
 {
-	struct args 		*args = cmd_get_args(self);
+	struct args		*args = cmd_get_args(self);
 	struct cmd_find_state	*target = cmdq_get_target(item);
 	struct client		*c;
+	struct client		*nc = cmd_find_client(item, NULL, 0);
 	struct session		*s;
 	struct format_tree	*ft;
 	const char		*template, *filter;
@@ -89,7 +90,11 @@ cmd_list_clients_exec(struct cmd *self, struct cmdq_item *item)
 			flag = 1;
 		if (flag) {
 			line = format_expand(ft, template);
-			cmdq_print(item, "%s", line);
+			if (c == nc) {
+				cmdq_print(item, "-> %s", line);
+			} else {
+				cmdq_print(item, "%s", line);
+			}
 			free(line);
 		}
 
