@@ -55,6 +55,139 @@ cmd_display_panes_args_parse(__unused struct args *args, __unused u_int idx,
 	return (ARGS_PARSE_COMMANDS_OR_STRING);
 }
 
+static const char cmd_display_panes_alpha[26][5][5] = {
+	{ {0, 1, 1, 1, 0}, /* A */
+	  {1, 0, 0, 0, 1},
+	  {1, 1, 1, 1, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1} },
+	{ {1, 1, 1, 1, 0}, /* B */
+	  {1, 0, 0, 0, 1},
+	  {1, 1, 1, 1, 0},
+	  {1, 0, 0, 0, 1},
+	  {1, 1, 1, 1, 0} },
+	{ {0, 1, 1, 1, 1}, /* C */
+	  {1, 0, 0, 0, 0},
+	  {1, 0, 0, 0, 0},
+	  {1, 0, 0, 0, 0},
+	  {0, 1, 1, 1, 1} },
+	{ {1, 1, 1, 1, 0}, /* D */
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 1, 1, 1, 0} },
+	{ {1, 1, 1, 1, 1}, /* E */
+	  {1, 0, 0, 0, 0},
+	  {1, 1, 1, 1, 0},
+	  {1, 0, 0, 0, 0},
+	  {1, 1, 1, 1, 1} },
+	{ {1, 1, 1, 1, 1}, /* F */
+	  {1, 0, 0, 0, 0},
+	  {1, 1, 1, 1, 0},
+	  {1, 0, 0, 0, 0},
+	  {1, 0, 0, 0, 0} },
+	{ {0, 1, 1, 1, 1}, /* G */
+	  {1, 0, 0, 0, 0},
+	  {1, 0, 0, 1, 1},
+	  {1, 0, 0, 0, 1},
+	  {0, 1, 1, 1, 1} },
+	{ {1, 0, 0, 0, 1}, /* A */
+	  {1, 0, 0, 0, 1},
+	  {1, 1, 1, 1, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1} },
+	{ {1, 1, 1, 1, 1}, /* I */
+	  {0, 0, 1, 0, 0},
+	  {0, 0, 1, 0, 0},
+	  {0, 0, 1, 0, 0},
+	  {1, 1, 1, 1, 1} },
+	{ {1, 1, 1, 1, 1}, /* J */
+	  {0, 0, 0, 1, 0},
+	  {0, 0, 0, 1, 0},
+	  {1, 0, 0, 1, 0},
+	  {0, 1, 1, 0, 0} },
+	{ {1, 0, 0, 0, 1}, /* K */
+	  {1, 0, 0, 1, 0},
+	  {1, 1, 1, 0, 0},
+	  {1, 0, 0, 1, 0},
+	  {1, 0, 0, 0, 1} },
+	{ {1, 0, 0, 0, 0}, /* L */
+	  {1, 0, 0, 0, 0},
+	  {1, 0, 0, 0, 0},
+	  {1, 0, 0, 0, 0},
+	  {1, 1, 1, 1, 1} },
+	{ {1, 1, 0, 1, 1}, /* M */
+	  {1, 0, 1, 0, 1},
+	  {1, 0, 1, 0, 1},
+	  {1, 0, 1, 0, 1},
+	  {1, 0, 0, 0, 1} },
+	{ {1, 1, 0, 0, 1}, /* N */
+	  {1, 0, 1, 0, 1},
+	  {1, 0, 1, 0, 1},
+	  {1, 0, 1, 0, 1},
+	  {1, 0, 0, 1, 1} },
+	{ {0, 1, 1, 1, 0}, /* O */
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {0, 1, 1, 1, 0} },
+	{ {1, 1, 1, 1, 0}, /* P */
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 1, 1, 1, 0},
+	  {1, 0, 0, 0, 0} },
+	{ {0, 1, 1, 1, 0}, /* Q */
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 1, 0},
+	  {0, 1, 1, 0, 1} },
+	{ {1, 1, 1, 1, 0}, /* R */
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 1, 1, 1, 0},
+	  {1, 0, 0, 0, 1} },
+	{ {0, 1, 1, 1, 1}, /* S */
+	  {1, 0, 0, 0, 0},
+	  {0, 1, 1, 1, 0},
+	  {0, 0, 0, 0, 1},
+	  {1, 1, 1, 1, 0} },
+	{ {1, 1, 1, 1, 1}, /* T */
+	  {0, 0, 1, 0, 0},
+	  {0, 0, 1, 0, 0},
+	  {0, 0, 1, 0, 0},
+	  {0, 0, 1, 0, 0} },
+	{ {1, 0, 0, 0, 1}, /* U */
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {1, 0, 0, 0, 1},
+	  {0, 1, 1, 1, 0} },
+	{ {1, 0, 0, 0, 1}, /* V */
+	  {1, 0, 0, 0, 1},
+	  {0, 1, 0, 1, 0},
+	  {0, 1, 0, 1, 0},
+	  {0, 0, 1, 0, 0} },
+	{ {1, 0, 0, 0, 1}, /* W */
+	  {1, 0, 1, 0, 1},
+	  {1, 0, 1, 0, 1},
+	  {1, 0, 1, 0, 1},
+	  {0, 1, 0, 1, 0} },
+	{ {1, 0, 0, 0, 1}, /* X */
+	  {0, 1, 0, 1, 0},
+	  {0, 0, 1, 0, 0},
+	  {0, 1, 0, 1, 0},
+	  {1, 0, 0, 0, 1} },
+	{ {1, 0, 0, 0, 1}, /* Y */
+	  {0, 1, 0, 1, 0},
+	  {0, 0, 1, 0, 0},
+	  {0, 0, 1, 0, 0},
+	  {0, 0, 1, 0, 0} },
+	{ {1, 1, 1, 1, 1}, /* Z */
+	  {0, 0, 0, 1, 0},
+	  {0, 0, 1, 0, 0},
+	  {0, 1, 0, 0, 0},
+	  {1, 1, 1, 1, 1} },
+};
+
 static void
 cmd_display_panes_draw_pane(struct screen_redraw_ctx *ctx,
     struct window_pane *wp)
@@ -69,6 +202,8 @@ cmd_display_panes_draw_pane(struct screen_redraw_ctx *ctx,
 	int			 colour, active_colour;
 	char			 buf[16], lbuf[16], rbuf[16], *ptr;
 	size_t			 len, llen, rlen;
+	const char		*order = options_get_string(oo, "display-panes-order");
+	const char		(*table)[5];
 
 	if (wp->xoff + wp->sx <= ctx->ox ||
 	    wp->xoff >= ctx->ox + ctx->sx ||
@@ -120,7 +255,10 @@ cmd_display_panes_draw_pane(struct screen_redraw_ctx *ctx,
 
 	if (window_pane_index(wp, &pane) != 0)
 		fatalx("index not found");
-	len = xsnprintf(buf, sizeof buf, "%u", pane);
+	if (pane > strlen(order))
+		len = buf[0] = '\0';
+	else
+		len = xsnprintf(buf, sizeof buf, "%c", order[pane - 1]);
 
 	if (sx < len)
 		return;
@@ -138,10 +276,7 @@ cmd_display_panes_draw_pane(struct screen_redraw_ctx *ctx,
 	}
 
 	rlen = xsnprintf(rbuf, sizeof rbuf, "%ux%u", wp->sx, wp->sy);
-	if (pane > 9 && pane < 35)
-		llen = xsnprintf(lbuf, sizeof lbuf, "%c", 'a' + (pane - 10));
-	else
-		llen = 0;
+        llen = xsnprintf(lbuf, sizeof lbuf, "%u", pane);
 
 	if (sx < len * 6 || sy < 5) {
 		tty_attributes(tty, &fgc, &grid_default_cell, NULL, NULL);
@@ -163,14 +298,17 @@ cmd_display_panes_draw_pane(struct screen_redraw_ctx *ctx,
 
 	tty_attributes(tty, &bgc, &grid_default_cell, NULL, NULL);
 	for (ptr = buf; *ptr != '\0'; ptr++) {
-		if (*ptr < '0' || *ptr > '9')
+		if ('1' <= *ptr && *ptr <= '9')
+			table = window_clock_table[*ptr - '0'];
+		else if ('a' <= *ptr && *ptr <= 'z')
+			table = cmd_display_panes_alpha[*ptr - 'a'];
+		else
 			continue;
-		idx = *ptr - '0';
 
 		for (j = 0; j < 5; j++) {
 			for (i = px; i < px + 5; i++) {
 				tty_cursor(tty, xoff + i, yoff + py + j);
-				if (window_clock_table[idx][j][i - px])
+				if (table[j][i - px])
 					tty_putc(tty, ' ');
 			}
 		}
@@ -231,16 +369,13 @@ cmd_display_panes_key(struct client *c, void *data, struct key_event *event)
 	struct window_pane		*wp;
 	u_int				 index;
 	key_code			 key;
+	const char			*order = options_get_string(c->session->options, "display-panes-order");
+	long				 lo = strlen(order);
 
-	if (event->key >= '0' && event->key <= '9')
-		index = event->key - '0';
-	else if ((event->key & KEYC_MASK_MODIFIERS) == 0) {
-		key = (event->key & KEYC_MASK_KEY);
-		if (key >= 'a' && key <= 'z')
-			index = 10 + (key - 'a');
-		else
-			return (-1);
-	} else
+	for (index = 1; index <= lo; index++)
+		if (order[index - 1] == event->key)
+			break;
+	if (index > lo)
 		return (-1);
 
 	wp = window_pane_at_index(w, index);
