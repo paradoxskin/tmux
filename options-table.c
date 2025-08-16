@@ -589,6 +589,13 @@ const struct options_table_entry options_table[] = {
 	  .text = "Time for which 'display-panes' should show pane numbers."
 	},
 
+	{ .name = "display-panes-order",
+	  .type = OPTIONS_TABLE_STRING,
+	  .scope = OPTIONS_TABLE_SESSION,
+	  .default_str = "123456789abcdefghijklmnopqrstuvwxyz",
+	  .text = "Order for keys to jump in panes for 'display-panes'"
+	},
+
 	{ .name = "display-time",
 	  .type = OPTIONS_TABLE_NUMBER,
 	  .scope = OPTIONS_TABLE_SESSION,
