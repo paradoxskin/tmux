@@ -5315,7 +5315,7 @@ window_copy_line_number_width(struct window_mode_entry *wme)
 static u_int
 window_copy_cursor_offset(struct window_mode_entry *wme, u_int cx, u_int sx)
 {
-	u_int	width = window_copy_line_number_width(wme);
+	u_int	width = 0;
 	u_int	content;
 
 	if (width == 0)
@@ -5332,7 +5332,7 @@ window_copy_cursor_offset(struct window_mode_entry *wme, u_int cx, u_int sx)
 static u_int
 window_copy_cursor_unoffset(struct window_mode_entry *wme, u_int vx, u_int sx)
 {
-	u_int	width = window_copy_line_number_width(wme);
+	u_int	width = 0;
 	u_int	content;
 
 	if (width == 0)
@@ -5413,19 +5413,14 @@ window_copy_write_line(struct window_mode_entry *wme,
 	u_int				 sx = screen_size_x(s);
 	u_int				 hsize = screen_hsize(data->backing);
 	u_int				 width;
-	u_int				 absolute, line_number, content_sx;
+	u_int				 absolute, line_number;
+	long long			 enable;
 	const char			*value;
 	char				*expanded;
 	struct format_tree		*ft;
 	int				 current, mode;
 
 	width  = window_copy_line_number_width(wme);
-	if (width >= sx)
-		content_sx = 1;
-	else if (width != 0)
-		content_sx = sx - width;
-	else
-		content_sx = sx;
 
 	screen_write_cursormove(ctx, 0, py, 0);
 
@@ -5441,50 +5436,54 @@ window_copy_write_line(struct window_mode_entry *wme,
 	mkgc.flags |= GRID_FLAG_NOPALETTE;
 	style_apply(&clgc, oo, "copy-mode-current-line-style", ft);
 	clgc.flags |= GRID_FLAG_NOPALETTE;
-	if (width != 0) {
-		style_apply(&ln_gc, oo, "copy-mode-line-number-style", ft);
-		ln_gc.flags |= GRID_FLAG_NOPALETTE;
-		style_apply(&cur_ln_gc, oo,
-		    "copy-mode-current-line-number-style", ft);
-		cur_ln_gc.flags |= GRID_FLAG_NOPALETTE;
-		current = (py == data->cy);
-		absolute = hsize - data->oy + py + 1;
-		mode = window_copy_line_number_mode(wme);
-		if (mode == WINDOW_COPY_LINE_NUMBERS_DEFAULT) {
-			if (py < data->oy)
-				line_number = data->oy - py;
-			else
-				line_number = py - data->oy;
-		} else if (mode == WINDOW_COPY_LINE_NUMBERS_ABSOLUTE)
-			line_number = absolute;
-		else if (mode == WINDOW_COPY_LINE_NUMBERS_HYBRID && current)
-			line_number = absolute;
-		else if (py > data->cy)
-			line_number = py - data->cy;
+
+	/* 绘制原行 */
+	window_copy_write_one(wme, ctx, 0, py, hsize - data->oy + py,
+	    sx, &mgc, &cgc, &mkgc, &clgc);
+
+	/* 绘制line number */
+	style_apply(&ln_gc, oo, "copy-mode-line-number-style", ft);
+	enable = options_get_number(oo, "copy-mode-line-number-trigger");
+	ln_gc.flags |= GRID_FLAG_NOPALETTE;
+	style_apply(&cur_ln_gc, oo,
+	    "copy-mode-current-line-number-style", ft);
+	cur_ln_gc.flags |= GRID_FLAG_NOPALETTE;
+	current = (py == data->cy);
+	absolute = hsize - data->oy + py + 1;
+	mode = window_copy_line_number_mode(wme);
+	if (mode == WINDOW_COPY_LINE_NUMBERS_DEFAULT) {
+		if (py < data->oy)
+			line_number = data->oy - py;
 		else
-			line_number = data->cy - py;
-		screen_write_cursormove(ctx, 0, py, 0);
-		screen_write_nputs(ctx, width, current ? &cur_ln_gc : &ln_gc,
+			line_number = py - data->oy;
+	} else if (mode == WINDOW_COPY_LINE_NUMBERS_ABSOLUTE)
+		line_number = absolute;
+	else if (mode == WINDOW_COPY_LINE_NUMBERS_HYBRID && current)
+		line_number = absolute;
+	else if (py > data->cy)
+		line_number = py - data->cy;
+	else
+		line_number = data->cy - py;
+	if (!current && enable) {
+		screen_write_cursormove(ctx, 1, py, 0);
+		screen_write_nputs(ctx, width, &ln_gc,
 		    "%*u ", (int)width - 1, line_number);
 	}
-
-	window_copy_write_one(wme, ctx, width, py, hsize - data->oy + py,
-	    content_sx, &mgc, &cgc, &mkgc, &clgc);
 
 	if (py == 0 && s->rupper < s->rlower && !data->hide_position) {
 		value = options_get_string(oo, "copy-mode-position-format");
 		if (*value != '\0') {
 			expanded = format_expand(ft, value);
 			if (*expanded != '\0') {
-				screen_write_cursormove(ctx, width, 0, 0);
-				format_draw(ctx, &gc, content_sx, expanded,
+				screen_write_cursormove(ctx, 0, 0, 0);
+				format_draw(ctx, &gc, sx, expanded,
 				    NULL, 0);
 			}
 			free(expanded);
 		}
 	}
 
-	if (py == data->cy && data->cx >= content_sx) {
+	if (py == data->cy && data->cx >= sx) {
 		screen_write_cursormove(ctx, window_copy_cursor_offset(wme,
 		    data->cx, screen_size_x(s)), py, 0);
 		screen_write_putc(ctx, &grid_default_cell, '$');
@@ -5539,18 +5538,6 @@ window_copy_redraw_lines(struct window_mode_entry *wme, u_int py, u_int ny)
 	struct screen			*s = &data->screen;
 	struct screen_write_ctx 	 ctx;
 	u_int				 i;
-
-	if (window_copy_line_number_width(wme) != 0) {
-		screen_write_start(&ctx, &data->screen);
-		for (i = py; i < py + ny; i++)
-			window_copy_write_line(wme, &ctx, i);
-		screen_write_cursormove(&ctx,
-		    window_copy_cursor_offset(wme, data->cx, screen_size_x(s)),
-		    data->cy, 0);
-		screen_write_stop(&ctx);
-		wp->flags |= (PANE_REDRAW|PANE_REDRAWSCROLLBAR);
-		return;
-	}
 
 	if (window_pane_scrollbar_overlay_visible(wp))
 		screen_write_start(&ctx, &data->screen);
@@ -5698,7 +5685,7 @@ window_copy_update_cursor(struct window_mode_entry *wme, u_int cx, u_int cy)
 	old_cx = data->cx; old_cy = data->cy;
 	data->cx = cx; data->cy = cy;
 	if (window_copy_line_numbers_active(wme)) {
-		width = window_copy_line_number_width(wme);
+		width = 0;
 
 		if (s->sel != NULL ||
 		    data->lineflag != LINE_SEL_NONE ||
@@ -5936,7 +5923,7 @@ window_copy_set_selection(struct window_mode_entry *wme, int may_redraw,
 	style_apply(&gc, oo, "copy-mode-selection-style", ft);
 	gc.flags |= GRID_FLAG_NOPALETTE;
 	format_free(ft);
-	clipx = window_copy_line_number_width(wme);
+	clipx = 0;
 	if (clipx >= screen_size_x(s))
 		clipx = screen_size_x(s) - 1;
 	if (window_copy_line_numbers_active(wme)) {
