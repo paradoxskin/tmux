@@ -33,6 +33,10 @@ static void		 window_panes_key(struct window_mode_entry *,
 			     struct client *, struct session *,
 			     struct winlink *, key_code, struct mouse_event *);
 
+static enum args_parse_type cmd_display_pps_args_parse(struct args *, u_int,
+			     char **);
+static enum cmd_retval	 cmd_display_pps_exec(struct cmd *, struct cmdq_item *);
+
 const struct window_mode window_panes_mode = {
 	.name = "panes-mode",
 	.flags = WINDOW_MODE_HIDE_PANE_STATUS|WINDOW_MODE_NO_STACK|
@@ -43,6 +47,53 @@ const struct window_mode window_panes_mode = {
 	.resize = window_panes_resize,
 	.key = window_panes_key,
 };
+
+const struct cmd_entry cmd_display_pps_entry = {
+	.name = "display-pps",
+	.alias = NULL,
+
+	.args = { "d:kNs:t:Z", 0, 1, cmd_display_pps_args_parse },
+	.usage = "[-kNZ] [-d duration] [-s source-window] "
+		 CMD_TARGET_PANE_USAGE " [template]",
+
+	.source = { 's', CMD_FIND_WINDOW, 0 },
+	.target = { 't', CMD_FIND_PANE, 0 },
+
+	.flags = CMD_AFTERHOOK,
+	.exec = cmd_display_pps_exec
+};
+
+/* Should this invocation of window_panes_mode wait for the command queue? */
+static int
+window_panes_wait(struct cmdq_item *item)
+{
+	struct cmd	*self = cmdq_get_cmd(item);
+
+	if (self == NULL)
+		return (0);
+	return (cmd_get_entry(self) == &cmd_display_pps_entry);
+}
+
+static enum args_parse_type
+cmd_display_pps_args_parse(__unused struct args *args, __unused u_int idx,
+    __unused char **cause)
+{
+	return (ARGS_PARSE_COMMANDS_OR_STRING);
+}
+
+static enum cmd_retval
+cmd_display_pps_exec(struct cmd *self, struct cmdq_item *item)
+{
+	struct args		*args = cmd_get_args(self);
+	struct cmd_find_state	*target = cmdq_get_target(item);
+	struct window_pane	*wp = target->wp;
+
+	/* Reuse the display-panes mode, only the wait/queue behaviour differs. */
+	if (wp == NULL || window_pane_set_mode(wp, NULL, &window_panes_mode,
+	    item, target, args) != 0)
+		return (CMD_RETURN_NORMAL);
+	return (CMD_RETURN_WAIT);
+}
 
 struct window_panes_area {
 	u_int	id;
@@ -63,6 +114,7 @@ struct window_panes_modedata {
 	struct event			 timer;
 
 	struct args_command_state	*state;
+	struct cmdq_item		*item;
 	u_int				 delay;
 	int				 ignore_keys;
 	int				 zoomed;
@@ -706,6 +758,8 @@ window_panes_draw_format(struct window_panes_modedata *data,
 	free(expanded);
 }
 
+#include "alpha.h"
+
 static void
 window_panes_draw_number(struct window_panes_modedata *data,
     struct screen_write_ctx *ctx, struct window_pane *wp, u_int pane, u_int x,
@@ -719,14 +773,18 @@ window_panes_draw_number(struct window_panes_modedata *data,
 	struct format_tree	*ft;
 	const char		*name;
 	char			 buf[16], lbuf[16] = { 0 }, *ptr;
+	const char		*order = options_get_string(oo, "display-panes-order");
+	const char		(*table)[5];
 	size_t			 len, llen = 0, width;
-	u_int			 cx, cy, px, py, idx, i, j, format;
+	u_int			 base, cx, cy, px, py, idx, i, j, format;
 
-	len = xsnprintf(buf, sizeof buf, "%u", pane);
-	if (pane > 9 && pane < 35)
-		llen = xsnprintf(lbuf, sizeof lbuf, "%c", 'a' + (pane - 10));
-	if (sx < len)
-		return;
+	base = options_get_number(w->options, "pane-base-index");
+	if (pane < base || pane - base >= strlen(order))
+		len = buf[0] = '\0';
+	else
+		len = xsnprintf(buf, sizeof buf, "%c", order[pane - base]);
+
+	llen = xsnprintf(lbuf, sizeof lbuf, "%u", pane);
 
 	window_panes_get_source(data, &s, &wl, NULL);
 	if (s != NULL) {
@@ -766,13 +824,14 @@ window_panes_draw_number(struct window_panes_modedata *data,
 	px = (sx - width) / 2;
 	py = (sy - 5) / 2;
 	for (ptr = buf; *ptr != '\0'; ptr++) {
-		if (*ptr < '0' || *ptr > '9')
-			continue;
-		idx = *ptr - '0';
+		if ('0' <= *ptr && *ptr <= '9')
+			table = window_clock_table[*ptr - '0'];
+		else if ('a' <= *ptr && *ptr <= 'z')
+			table = _alpha[*ptr - 'a'];
 
 		for (j = 0; j < 5; j++) {
 			for (i = 0; i < 5; i++) {
-				if (!window_clock_table[idx][j][i])
+				if (!table[j][i])
 					continue;
 				screen_write_cursormove(ctx, x + px + i,
 				    y + py + j, 0);
@@ -921,12 +980,14 @@ window_panes_init(struct window_mode_entry *wme, struct cmdq_item *item,
 	wme->data = data = xcalloc(1, sizeof *data);
 	data->wp = wp;
 	data->session = s;
+	if (window_panes_wait(item))
+		data->item = item;
 
 	screen_init(&data->screen, sx, sy, 0);
 	data->screen.mode &= ~MODE_CURSOR;
 
 	data->state = args_make_commands_prepare(self, item, 0,
-	    "select-pane -t \"%%%\"", 0, 0);
+	    "select-pane -t \"%%%\"", data->item != NULL, 0);
 	if (args_has(args, 's')) {
 		data->source_session = source->s->id;
 		data->source_window = source->w->id;
@@ -975,6 +1036,8 @@ window_panes_free(struct window_mode_entry *wme)
 
 	if (data->state != NULL)
 		args_make_commands_free(data->state);
+	if (data->item != NULL)
+		cmdq_continue(data->item);
 	window_panes_free_areas(data);
 	if (data->preview != NULL) {
 		screen_free(data->preview);
@@ -1006,9 +1069,14 @@ window_panes_run_command(struct window_panes_modedata *data, struct client *c,
 	if (cmdlist == NULL) {
 		cmdq_append(c, cmdq_get_error(error));
 		free(error);
-	} else {
+	} else if (data->item == NULL) {
 		new_item = cmdq_get_command(cmdlist, NULL);
 		cmdq_append(c, new_item);
+		cmd_list_free(cmdlist);
+	} else {
+		new_item = cmdq_get_command(cmdlist,
+		    cmdq_get_state(data->item));
+		cmdq_insert_after(data->item, new_item);
 		cmd_list_free(cmdlist);
 	}
 	free(expanded);
@@ -1035,20 +1103,20 @@ static struct window_pane *
 window_panes_key_pane(struct window_panes_modedata *data, key_code key)
 {
 	struct window		*w;
-	u_int			 index;
+	u_int			 index, base;
+	const char		*order = options_get_string(data->wp->window->options, "display-panes-order");
+	long			 lo = strlen(order);
 
-	if (key >= '0' && key <= '9')
-		index = key - '0';
-	else if ((key & KEYC_MASK_MODIFIERS) == 0) {
-		key &= KEYC_MASK_KEY;
-		if (key < 'a' || key > 'z')
-			return (NULL);
-		index = 10 + (key - 'a');
-	} else
+	for (index = 1; index <= lo; index++)
+		if (order[index - 1] == key)
+			break;
+	if (index > lo)
 		return (NULL);
+
 	if (!window_panes_get_source(data, NULL, NULL, &w))
 		return (NULL);
-	return (window_pane_at_index(w, index));
+	base = options_get_number(w->options, "pane-base-index");
+	return (window_pane_at_index(w, base + index - 1));
 }
 
 static struct window_pane *
