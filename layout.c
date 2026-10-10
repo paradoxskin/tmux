@@ -688,6 +688,25 @@ layout_cell_get_neighbour(struct layout_cell *lc)
 	return (lcother);
 }
 
+static struct layout_cell *
+layout_cell_get_neighbour_before(struct layout_cell *lc)
+{
+	struct layout_cell	*lcother, *lcparent = lc->parent;
+	int			 direction = 0;
+
+	if (lcparent == NULL)
+		return (NULL);
+
+	if (lc == TAILQ_FIRST(&lcparent->cells))
+		direction = !direction;
+
+	lcother = layout_cell_get_neighbour_dir(lc, direction);
+	if (lcother == NULL)
+		lcother = layout_cell_get_neighbour_dir(lc, !direction);
+
+	return (lcother);
+}
+
 
 /* Destroy a cell and redistribute the space. */
 void
@@ -712,7 +731,7 @@ layout_destroy_cell(struct window *w, struct layout_cell *lc,
 		goto out;
 	}
 
-	lcother = layout_cell_get_neighbour(lc);
+	lcother = layout_cell_get_neighbour_before(lc);
 	if (lcother != NULL) {
 		if (lcparent->type == LAYOUT_LEFTRIGHT)
 			change = lc->g.sx + 1;
